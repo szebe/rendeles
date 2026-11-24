@@ -161,7 +161,7 @@ $('send').addEventListener('click', async () => {
     $('bar').hidden = true;
     $('app').innerHTML = `<div class="center"><div class="big">✅</div><h2>Köszönjük, megkaptuk!</h2>
       <p class="muted">${esc(name)} – a felelős vezető értesítést kapott, a következő kiszállításkor visszük.</p>
-      <button class="send ghost" id="again" style="margin-top:20px">Új igény leadása</button></div>`;
+      <button class="send ghost" id="again" style="margin-top:20px">Ha valami lemaradt, itt pótolhatod.</button></div>`;
     $('again').onclick = async () => { data = await rpc('order_portal', { p_token: token }); render(); };
   } catch (err) {
     alert(err.message);

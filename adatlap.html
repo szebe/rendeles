@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#2338F5">
+<title>SupaClean – Munkatársi adatlap</title>
+<link rel="icon" href="favicon.png">
+<style>
+  :root { --cobalt:#2338F5; --teal:#1FD1BF; --teal-d:#0E9F90; --ink:#0B1B2B; --muted:#64748B; --line:#E2E8F0; --bg:#F4F6FB; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; font-family:-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--cobalt); color:#fff; padding:18px 18px 22px; position:relative; }
+  header::after { content:""; position:absolute; left:0; right:0; bottom:0; height:5px; background:var(--teal); }
+  header .brand { font-weight:900; letter-spacing:.5px; font-size:15px; opacity:.9; }
+  header h1 { margin:6px 0 0; font-size:23px; font-weight:800; }
+  header p { margin:6px 0 0; font-size:14px; opacity:.9; }
+  main { padding:6px 14px 130px; max-width:640px; margin:0 auto; }
+  h2 { font-size:13px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:var(--teal-d); margin:26px 0 4px; }
+  .sub { font-size:13px; color:var(--muted); margin:0 0 8px; }
+  label { display:block; font-size:14px; font-weight:700; color:#334155; margin:14px 0 6px; }
+  label small { font-weight:400; color:var(--muted); }
+  input[type=text], input[type=tel], input[type=email], input[type=date], select {
+    width:100%; padding:12px 13px; border:1px solid var(--line); border-radius:12px; font-size:16px; background:#fff; color:var(--ink); font-family:inherit; }
+  input.bad, select.bad { border-color:#DC2626; background:#FEF2F2; }
+  .err { color:#B91C1C; font-size:13px; margin-top:4px; }
+  .check { display:flex; gap:10px; align-items:flex-start; background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px; margin-top:8px; font-size:15px; }
+  .check input { width:22px; height:22px; margin:0; flex:none; accent-color:var(--cobalt); }
+  .yn { display:flex; gap:8px; }
+  .yn button { flex:1; padding:12px; border-radius:12px; border:1px solid var(--line); background:#fff; font-size:15px; font-weight:700; color:#334155; }
+  .yn button.on { background:var(--cobalt); border-color:var(--cobalt); color:#fff; }
+  .kid { background:#fff; border:1px solid var(--line); border-radius:14px; padding:4px 12px 12px; margin-top:10px; }
+  .kid .head { display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-weight:800; }
+  .ghost { width:100%; margin-top:10px; padding:12px; border-radius:12px; border:2px dashed #A5B4FC; background:#fff; color:var(--cobalt); font-weight:700; font-size:15px; }
+  .x { background:none; border:0; color:#DC2626; font-weight:700; font-size:14px; }
+  .bar { position:fixed; left:0; right:0; bottom:0; padding:14px 14px calc(14px + env(safe-area-inset-bottom)); background:rgba(244,246,251,.96); border-top:1px solid var(--line); }
+  .send { display:block; width:100%; max-width:640px; margin:0 auto; border:0; border-radius:14px; background:var(--cobalt); color:#fff; font-size:17px; font-weight:800; padding:16px; }
+  .send:disabled { opacity:.5; }
+  .send.sec { background:#fff; color:var(--cobalt); border:2px solid var(--cobalt); margin-top:10px; }
+  .sum { background:#fff; border:1px solid var(--line); border-radius:14px; padding:4px 14px; margin-top:8px; }
+  .sum div { display:flex; gap:10px; padding:9px 0; border-bottom:1px solid #EEF0F6; font-size:15px; }
+  .sum div:last-child { border-bottom:0; }
+  .sum span { flex:0 0 42%; color:var(--muted); font-size:13px; }
+  .sum b { font-weight:600; word-break:break-word; }
+  .center { text-align:center; padding:40px 20px; } .big { font-size:56px; } .muted { color:var(--muted); }
+  .files { font-size:14px; margin-top:6px; color:#334155; }
+</style>
+</head>
+<body>
+<header><div class="brand">SUPACLEAN</div><h1 id="hello">Munkatársi adatlap</h1><p>A bejelentéshez és a bérszámfejtéshez szükséges adatok</p></header>
+<main id="app"><div class="center muted">Betöltés…</div></main>
+<div class="bar" id="bar" hidden></div>
+<script>
+const SUPABASE_URL = 'https://phonsamuiotwuthsbsxt.supabase.co';
+const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBob25zYW11aW90d3V0aHNic3h0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ2Nzc1NjYsImV4cCI6MjExMDI1MzU2Nn0.iGdtmc9yLMKTOASvKUCeXEmXR5SLxeC93a3lpZUDyPI';
+const params = new URLSearchParams(location.hash.slice(1) || location.search.slice(1));
+const token = params.get('k') || '';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
+const EDUCATION = ['8 általánosnál kevesebb', '8 általános', 'Szakmunkásképző / szakiskola', 'Érettségi (gimnázium)', 'Technikum / szakközépiskola', 'Felsőfokú (főiskola, egyetem)'];
+const BENEFITS = [
+  ['csaladi', 'Családi kedvezmény', 'Eltartott gyermek után. A gyermekek adóazonosító jele kell hozzá.'],
+  ['elso_hazas', 'Első házasok kedvezménye', 'Az első házasságkötés utáni 24 hónapban.'],
+  ['25_alatti', '25 év alatti fiatalok kedvezménye', ''],
+  ['30_alatti_anya', '30 év alatti anyák kedvezménye', ''],
+  ['negy_gyermekes_anya', 'Négy vagy több gyermeket nevelő anyák kedvezménye', ''],
+  ['szemelyi', 'Személyi kedvezmény', 'Súlyos fogyatékosság esetén.'],
+];
+
+let portal = null, step = 'form', sending = false;
+const f = { full_name:'', birth_name:'', same_birth_name:true, mother_name:'', birth_place:'', birth_date:'', tax_id:'', taj_number:'',
+  citizenship:'magyar', id_card_number:'', education:'', qualification:'', address:'', mailing_address:'', phone:'', email:'', bank_account:'',
+  emergency_contact_name:'', emergency_contact_phone:'', children:[], tax_benefits:[], is_pensioner:null, reduced_work_capacity:null,
+  had_job_this_year:null, prev_employer:'' };
+let files = []; // {name, mime, data(base64)}
+let errors = {};
+
+async function rpc(fn, body) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST', headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((j && (j.message || j.hint)) || `Hiba (${res.status})`);
+  return j;
+}
+async function fn(body) {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/onboarding`, {
+    method: 'POST', headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...body, order_token: token }) });
+  const j = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((j && j.error) || `Hiba (${res.status})`);
+  return j;
+}
+
+function fail(msg) {
+  $('bar').hidden = true;
+  $('app').innerHTML = `<div class="center"><div class="big">⚠️</div><p><b>${esc(msg)}</b></p><p class="muted">Kérd el Tamástól a saját linkedet.</p></div>`;
+}
+
+async function load() {
+  if (!token) return fail('Hiányzik a személyes kód a linkből.');
+  try { portal = await rpc('onboarding_portal', { p_token: token }); } catch (e) { return fail(e.message); }
+  if (portal.done) {
+    $('app').innerHTML = `<div class="center"><div class="big">✅</div><h2 style="color:inherit;text-transform:none;letter-spacing:0;font-size:20px">Az adatlapodat már megkaptuk.</h2><p class="muted">Ha valamit javítani kell, szólj Tamásnak.</p></div>`;
+    return;
+  }
+  f.full_name = portal.full_name || '';
+  f.phone = portal.phone || '';
+  const first = f.full_name.trim().split(/\s+/).pop();
+  $('hello').textContent = `Szia${first ? ', ' + first : ''}!`;
+  render();
+}
+
+// ---------- mezők ----------
+const inp = (k, label, opt = {}) => `<label for="${k}">${label}${opt.req === false ? ' <small>(nem kötelező)</small>' : ''}${opt.hint ? ` <small>${opt.hint}</small>` : ''}</label>
+  <input id="${k}" data-k="${k}" type="${opt.type || 'text'}" ${opt.mode ? `inputmode="${opt.mode}"` : ''} ${opt.ac ? `autocomplete="${opt.ac}"` : ''}
+   value="${esc(f[k])}" placeholder="${esc(opt.ph || '')}" class="${errors[k] ? 'bad' : ''}">${errors[k] ? `<div class="err">${esc(errors[k])}</div>` : ''}`;
+const yn = (k, label) => `<label>${label}</label><div class="yn">
+  <button type="button" data-yn="${k}" data-v="true" class="${f[k] === true ? 'on' : ''}">Igen</button>
+  <button type="button" data-yn="${k}" data-v="false" class="${f[k] === false ? 'on' : ''}">Nem</button></div>${errors[k] ? `<div class="err">${esc(errors[k])}</div>` : ''}`;
+
+function render() {
+  if (step === 'review') return renderReview();
+  let h = '';
+  h += `<h2>Személyes adatok</h2><p class="sub">A NAV-bejelentéshez kötelező adatok, úgy, ahogy a hivatalos igazolványaidban szerepelnek.</p>`;
+  h += inp('full_name', 'Teljes név', { ac: 'name' });
+  h += `<label class="check"><input type="checkbox" id="same_birth_name" ${f.same_birth_name ? 'checked' : ''}> A születési nevem ugyanez</label>`;
+  if (!f.same_birth_name) h += inp('birth_name', 'Születési név');
+  h += inp('mother_name', 'Anyja születési neve');
+  h += inp('birth_place', 'Születési hely');
+  h += inp('birth_date', 'Születési idő', { type: 'date' });
+  h += inp('tax_id', 'Adóazonosító jel', { mode: 'numeric', ph: '10 számjegy, 8-cal kezdődik', hint: '(adókártyán)' });
+  h += inp('taj_number', 'TAJ-szám', { mode: 'numeric', ph: '9 számjegy', hint: '(TAJ-kártyán)' });
+  h += inp('citizenship', 'Állampolgárság');
+  h += inp('id_card_number', 'Személyi igazolvány száma', { req: false });
+  h += `<label for="education">Legmagasabb iskolai végzettség</label><select id="education" data-k="education" class="${errors.education ? 'bad' : ''}">
+    <option value="">Válassz…</option>${EDUCATION.map((e) => `<option ${f.education === e ? 'selected' : ''}>${esc(e)}</option>`).join('')}</select>
+    ${errors.education ? `<div class="err">${esc(errors.education)}</div>` : ''}`;
+  h += inp('qualification', 'Szakképzettség', { req: false, ph: 'pl. szakács, varrónő' });
+
+  h += `<h2>Elérhetőség, bérutalás</h2>`;
+  h += inp('address', 'Lakcím', { ph: 'irányítószám, település, utca, házszám', ac: 'street-address' });
+  h += inp('mailing_address', 'Értesítési cím', { req: false, hint: '(ha eltér a lakcímtől)' });
+  h += inp('phone', 'Telefonszám', { type: 'tel', ac: 'tel' });
+  h += inp('email', 'E-mail cím', { type: 'email', req: false, ac: 'email' });
+  h += inp('bank_account', 'Bankszámlaszám a bérutaláshoz', { mode: 'numeric', ph: '00000000-00000000-00000000' });
+
+  h += `<h2>Értesítendő személy</h2><p class="sub">(akit baleset vagy rosszullét esetén hívunk, pl. házastárs, szülő)</p>`;
+  h += inp('emergency_contact_name', 'Neve', { ph: 'pl. Kovács János (férjem)' });
+  h += inp('emergency_contact_phone', 'Telefonszáma', { type: 'tel' });
+
+  h += `<h2>Gyermekek</h2><p class="sub">A pótszabadsághoz és a családi kedvezményhez. Ha nincs gyermeked, hagyd üresen.</p>`;
+  f.children.forEach((c, i) => {
+    h += `<div class="kid"><div class="head">${i + 1}. gyermek <button class="x" data-delkid="${i}">Törlés</button></div>
+      <label>Neve</label><input type="text" data-kid="${i}" data-kf="name" value="${esc(c.name)}" class="${errors['kid' + i + 'name'] ? 'bad' : ''}">
+      <label>Születési ideje</label><input type="date" data-kid="${i}" data-kf="birth_date" value="${esc(c.birth_date)}" class="${errors['kid' + i + 'birth_date'] ? 'bad' : ''}">
+      <label>Adóazonosító jele <small>(a családi kedvezményhez kell)</small></label><input type="text" inputmode="numeric" data-kid="${i}" data-kf="tax_id" value="${esc(c.tax_id)}" class="${errors['kid' + i + 'tax_id'] ? 'bad' : ''}">
+      ${errors['kid' + i] ? `<div class="err">${esc(errors['kid' + i])}</div>` : ''}</div>`;
+  });
+  h += `<button class="ghost" id="addkid">+ Gyermek hozzáadása</button>`;
+
+  h += `<h2>Adókedvezmények</h2><p class="sub">Jelöld be, amit igénybe szeretnél venni (ha jár). Ha nem tudod, kérdezd meg Szilvit a könyvelésen.</p>`;
+  for (const [k, l, d] of BENEFITS) {
+    h += `<label class="check"><input type="checkbox" data-ben="${k}" ${f.tax_benefits.includes(k) ? 'checked' : ''}><span><b>${esc(l)}</b>${d ? `<br><small class="muted">${esc(d)}</small>` : ''}</span></label>`;
+  }
+  if (errors.benefits) h += `<div class="err">${esc(errors.benefits)}</div>`;
+
+  h += `<h2>Nyilatkozatok</h2>`;
+  h += yn('is_pensioner', 'Nyugdíjas vagy?');
+  h += yn('reduced_work_capacity', 'Megváltozott munkaképességű vagy?');
+  h += yn('had_job_this_year', 'Volt idén előző munkahelyed?');
+  if (f.had_job_this_year) {
+    h += inp('prev_employer', 'Előző munkahely neve', { req: false });
+    h += `<label>Kilépő papír fotója <small>(az előző munkahely igazolása a munkaviszony megszűnéséről)</small></label>
+      <p class="sub">Nem kötelező, ha idén nem volt előző munkahelyed. Lefotózhatod a telefonoddal, akár több oldalt is.</p>
+      <input type="file" id="file" accept="image/*,application/pdf" multiple>
+      <div class="files">${files.map((x, i) => `📎 ${esc(x.name)} <button class="x" data-delfile="${i}">törlés</button>`).join('<br>')}</div>`;
+  }
+  $('app').innerHTML = h;
+  $('bar').hidden = false;
+  $('bar').innerHTML = `<button class="send" id="next">Tovább az ellenőrzéshez</button>`;
+}
+
+const label = (k) => ({ full_name:'Teljes név', birth_name:'Születési név', mother_name:'Anyja születési neve', birth_place:'Születési hely', birth_date:'Születési idő',
+  tax_id:'Adóazonosító jel', taj_number:'TAJ-szám', citizenship:'Állampolgárság', education:'Iskolai végzettség', address:'Lakcím', phone:'Telefonszám',
+  bank_account:'Bankszámlaszám', emergency_contact_name:'Értesítendő személy neve', emergency_contact_phone:'Értesítendő személy telefonja' }[k] || k);
+
+function validate() {
+  errors = {};
+  const req = ['full_name','mother_name','birth_place','birth_date','tax_id','taj_number','citizenship','education','address','phone','bank_account','emergency_contact_name','emergency_contact_phone'];
+  if (!f.same_birth_name) req.push('birth_name');
+  for (const k of req) if (!String(f[k] || '').trim()) errors[k] = 'Kötelező mező';
+  const digits = (s) => String(s || '').replace(/\D/g, '');
+  if (f.tax_id && !/^8\d{9}$/.test(digits(f.tax_id))) errors.tax_id = 'Az adóazonosító jel 10 számjegy, és 8-cal kezdődik';
+  if (f.taj_number && digits(f.taj_number).length !== 9) errors.taj_number = 'A TAJ-szám 9 számjegy';
+  if (f.bank_account && ![16, 24].includes(digits(f.bank_account).length)) errors.bank_account = 'A bankszámlaszám 16 vagy 24 számjegy';
+  if (f.birth_date && (new Date(f.birth_date) > new Date() || new Date(f.birth_date) < new Date('1930-01-01'))) errors.birth_date = 'Ellenőrizd a dátumot';
+  f.children.forEach((c, i) => {
+    if (!c.name.trim()) errors['kid' + i + 'name'] = 1;
+    if (!c.birth_date) errors['kid' + i + 'birth_date'] = 1;
+    if (c.tax_id && !/^8\d{9}$/.test(digits(c.tax_id))) errors['kid' + i + 'tax_id'] = 1;
+    if (errors['kid' + i + 'name'] || errors['kid' + i + 'birth_date']) errors['kid' + i] = 'A gyermek nevét és születési idejét add meg';
+    else if (errors['kid' + i + 'tax_id']) errors['kid' + i] = 'Az adóazonosító jel 10 számjegy, 8-cal kezdődik';
+  });
+  if (f.tax_benefits.includes('csaladi') && (!f.children.length || f.children.some((c) => !c.tax_id)))
+    errors.benefits = 'A családi kedvezményhez add meg a gyermekeket az adóazonosító jelükkel';
+  for (const k of ['is_pensioner', 'reduced_work_capacity', 'had_job_this_year']) if (f[k] === null) errors[k] = 'Válassz: igen vagy nem';
+  return Object.keys(errors).length === 0;
+}
+
+function renderReview() {
+  const r = (l, v) => `<div><span>${esc(l)}</span><b>${esc(v || '—')}</b></div>`;
+  const hu = (d) => d ? d.replace(/-/g, '.') + '.' : '—';
+  let h = `<h2>Ellenőrizd az adataidat</h2><p class="sub">Ha minden stimmel, hagyd jóvá. Ha valamit javítani kell, menj vissza.</p>`;
+  h += `<div class="sum">${r('Név', f.full_name)}${r('Születési név', f.same_birth_name ? f.full_name : f.birth_name)}${r('Anyja születési neve', f.mother_name)}
+    ${r('Születési hely, idő', `${f.birth_place}, ${hu(f.birth_date)}`)}${r('Adóazonosító jel', f.tax_id)}${r('TAJ-szám', f.taj_number)}
+    ${r('Állampolgárság', f.citizenship)}${f.id_card_number ? r('Személyi ig. száma', f.id_card_number) : ''}${r('Iskolai végzettség', f.education)}${r('Szakképzettség', f.qualification)}</div>`;
+  h += `<div class="sum">${r('Lakcím', f.address)}${f.mailing_address ? r('Értesítési cím', f.mailing_address) : ''}${r('Telefonszám', f.phone)}${f.email ? r('E-mail', f.email) : ''}
+    ${r('Bankszámlaszám', f.bank_account)}${r('Értesítendő személy', `${f.emergency_contact_name} – ${f.emergency_contact_phone}`)}</div>`;
+  h += `<div class="sum">${r('Gyermekek', f.children.length ? f.children.map((c) => `${c.name} (${hu(c.birth_date)})`).join(', ') : 'nincs')}
+    ${r('Adókedvezmények', f.tax_benefits.length ? BENEFITS.filter((b) => f.tax_benefits.includes(b[0])).map((b) => b[1]).join(', ') : 'nem kérek')}
+    ${r('Nyugdíjas', f.is_pensioner ? 'Igen' : 'Nem')}${r('Megváltozott munkaképességű', f.reduced_work_capacity ? 'Igen' : 'Nem')}
+    ${r('Idén előző munkahely', f.had_job_this_year ? (f.prev_employer || 'Igen') : 'Nem')}${f.had_job_this_year ? r('Kilépő papír', files.length ? `${files.length} fájl` : 'nincs feltöltve') : ''}</div>`;
+  $('app').innerHTML = h;
+  $('bar').innerHTML = `<button class="send" id="submit">Jóváhagyom és elküldöm</button><button class="send sec" id="back">Vissza a javításhoz</button>`;
+  window.scrollTo(0, 0);
+}
+
+// ---------- események ----------
+document.addEventListener('input', (e) => {
+  const t = e.target;
+  if (t.dataset.k) f[t.dataset.k] = t.value;
+  if (t.dataset.kid !== undefined) f.children[+t.dataset.kid][t.dataset.kf] = t.value;
+});
+document.addEventListener('change', async (e) => {
+  const t = e.target;
+  if (t.id === 'same_birth_name') { f.same_birth_name = t.checked; render(); }
+  if (t.dataset.ben) { f.tax_benefits = t.checked ? [...f.tax_benefits, t.dataset.ben] : f.tax_benefits.filter((x) => x !== t.dataset.ben); }
+  if (t.id === 'file') {
+    for (const file of t.files) {
+      try { files.push(await prepareFile(file)); } catch (err) { alert(err.message); }
+    }
+    render();
+  }
+});
+document.addEventListener('click', async (e) => {
+  const t = e.target.closest('button'); if (!t) return;
+  if (t.dataset.yn) { f[t.dataset.yn] = t.dataset.v === 'true'; render(); }
+  else if (t.id === 'addkid') { f.children.push({ name: '', birth_date: '', tax_id: '' }); render(); }
+  else if (t.dataset.delkid !== undefined) { f.children.splice(+t.dataset.delkid, 1); render(); }
+  else if (t.dataset.delfile !== undefined) { files.splice(+t.dataset.delfile, 1); render(); }
+  else if (t.id === 'next') {
+    if (validate()) { step = 'review'; render(); }
+    else { render(); const first = document.querySelector('.bad, .err'); if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      alert('Néhány adat hiányzik vagy hibás – pirossal jelöltük.'); }
+  }
+  else if (t.id === 'back') { step = 'form'; render(); }
+  else if (t.id === 'submit') submit();
+});
+
+// Fotó kicsinyítése (gyorsabb feltöltés), PDF változatlanul
+function prepareFile(file) {
+  return new Promise((resolve, reject) => {
+    if (file.size > 25 * 1024 * 1024) return reject(new Error('A fájl túl nagy.'));
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('A fájl nem olvasható.'));
+    if (file.type === 'application/pdf') {
+      reader.onload = () => resolve({ name: file.name, mime: 'application/pdf', data: String(reader.result).split(',')[1] });
+      return reader.readAsDataURL(file);
+    }
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const s = Math.min(1, 1800 / Math.max(img.width, img.height));
+        const c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        resolve({ name: file.name || 'foto.jpg', mime: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.82).split(',')[1] });
+      };
+      img.onerror = () => reject(new Error('Ezt a képet nem tudom megnyitni. Próbáld JPG fotóként.'));
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function submit() {
+  if (sending) return;
+  sending = true; $('submit').disabled = true; $('submit').textContent = 'Küldés…';
+  try {
+    for (const x of files) await fn({ action: 'upload', filename: x.name, mime: x.mime, data: x.data });
+    files = [];
+    const p = { ...f, birth_name: f.same_birth_name ? f.full_name : f.birth_name,
+      children: f.children.map((c) => ({ name: c.name.trim(), birth_date: c.birth_date, tax_id: c.tax_id.replace(/\D/g, '') || null })) };
+    delete p.same_birth_name;
+    await rpc('onboarding_submit', { p_token: token, p });
+    fn({ action: 'submitted' }).catch(() => {});
+    $('bar').hidden = true;
+    $('app').innerHTML = `<div class="center"><div class="big">✅</div><h2 style="color:inherit;text-transform:none;letter-spacing:0;font-size:22px">Köszönjük, megkaptuk!</h2>
+      <p class="muted">Az adataidat továbbítjuk a könyvelésnek. Ha bármi kérdés van, keresni fogunk.</p></div>`;
+    window.scrollTo(0, 0);
+  } catch (err) {
+    alert(err.message);
+    $('submit').disabled = false; $('submit').textContent = 'Jóváhagyom és elküldöm';
+  } finally { sending = false; }
+}
+
+load();
+</script>
+</body>
+</html>

@@ -41,10 +41,21 @@
   .st.uj { background:#F59E0B; } .st.kiszallitva { background:#10B981; }
   .link { background:none; border:0; color:#DC2626; font-weight:700; padding:6px 0; font-size:14px; }
   .ghost { background:#fff; color:var(--cobalt); border:2px solid var(--cobalt); }
+  .nav { display:flex; gap:6px; padding:10px 14px 0; max-width:640px; margin:0 auto; }
+  .nav button { flex:1; border:1px solid var(--line); background:#fff; border-radius:12px; padding:10px 4px; font-size:14px; font-weight:700; color:#334155; }
+  .nav button.on { background:var(--cobalt); border-color:var(--cobalt); color:#fff; }
+  .stats { display:flex; background:#fff; border:1px solid var(--line); border-radius:14px; padding:12px 6px; margin-top:12px; }
+  .stats div { flex:1; text-align:center; } .stats b { display:block; font-size:24px; color:var(--ink); } .stats span { font-size:12px; color:var(--muted); }
+  .stats .main b { color:var(--cobalt); }
+  input[type=date], select.sel { width:100%; padding:12px 13px; border:1px solid var(--line); border-radius:12px; font-size:16px; background:#fff; color:var(--ink); font-family:inherit; }
+  .ok { color:#059669; font-weight:700; }
 </style>
 </head>
 <body>
 <header><div class="brand">SUPACLEAN</div><h1 id="hello">Anyagigény</h1></header>
+<nav class="nav" id="nav" hidden>
+  <button data-v="anyag" class="on">🧴 Anyag</button><button data-v="szabadsag">🏖 Szabadság</button><button data-v="beteg">🤒 Beteg vagyok</button>
+</nav>
 <main id="app"><div class="center muted">Betöltés…</div></main>
 <div class="bar" id="bar" hidden><button class="send" id="send" disabled>Igény leadása</button></div>
 <script>
@@ -56,6 +67,8 @@ const CATS = ['Vegyszer', 'Eszköz', 'Szemeteszsák', 'Papíráru', 'Egyéb'];
 const params = new URLSearchParams(location.hash.slice(1) || location.search.slice(1));
 const token = params.get('k') || '';
 let data = null, customer = null, qty = {}, q = '', note = '', sending = false;
+let view = params.get('v') || 'anyag', ab = null; // ab: szabadság/betegség adatok
+const lv = { from: '', to: '', repl: '', note: '' }; const sk = { from: new Date().toISOString().slice(0, 10), to: '', note: '' };
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 
@@ -84,8 +97,144 @@ async function load() {
   const first = (data.nickname || '').trim() || (data.worker_name || '').trim().split(/\s+/).pop();
   $('hello').textContent = `Szia${first ? ', ' + first : ''}!`;
   if (data.customers.length === 1) customer = data.customers[0].id;
-  render();
+  $('nav').hidden = false;
+  show(view);
 }
+
+// ---------- nézetváltás ----------
+async function show(v) {
+  view = v;
+  document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.v === v));
+  if (v === 'anyag') return render();
+  $('bar').hidden = true;
+  if (!ab) {
+    $('app').innerHTML = '<div class="center muted">Betöltés…</div>';
+    try { ab = await rpc('absence_portal', { p_token: token }); } catch (e) { return fail(e.message); }
+  }
+  v === 'szabadsag' ? renderLeave() : renderSick();
+}
+document.getElementById('nav').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) show(b.dataset.v); });
+
+const hu = (d) => d ? d.slice(0, 10).replace(/-/g, '.') + '.' : '';
+function workdaysApprox(a, b) {
+  if (!a || !b || b < a) return 0;
+  let n = 0; for (let d = new Date(a + 'T12:00'); d <= new Date(b + 'T12:00'); d.setDate(d.getDate() + 1)) { const w = d.getDay(); if (w && w < 6) n++; }
+  return n;
+}
+
+function renderLeave() {
+  const s = ab.summary || {};
+  const used = Number(s.taken_before || 0) + Number(s.taken || 0);
+  const n = workdaysApprox(lv.from, lv.to);
+  let h = `<div class="stats"><div><b>${s.entitlement ?? '—'}</b><span>éves keret</span></div><div><b>${used}</b><span>kivett</span></div>
+    <div><b>${s.planned ?? 0}</b><span>tervezett</span></div><div class="main"><b>${s.remaining ?? '—'}</b><span>maradék</span></div></div>`;
+  h += `<div class="label">Mettől?</div><input type="date" id="lfrom" value="${esc(lv.from)}">`;
+  h += `<div class="label">Meddig?</div><input type="date" id="lto" value="${esc(lv.to)}">`;
+  if (n) h += `<p class="muted">Kb. ${n} munkanap${s.remaining != null && n > s.remaining ? ' – <b class="err">több, mint a maradék szabadságod!</b>' : ''}</p>`;
+  h += `<div class="label">Ki helyettesít?</div><select class="sel" id="lrepl">
+    <option value="">Még nem tudom – Tamás vagy Laci intézi</option>
+    <option value="none" ${lv.repl === 'none' ? 'selected' : ''}>Nem kell helyettes</option>
+    ${(ab.colleagues || []).map((c) => `<option value="${c.id}" ${lv.repl === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>`;
+  h += `<div class="label">Megjegyzés (nem kötelező)</div><textarea id="lnote">${esc(lv.note)}</textarea>`;
+  h += `<button class="send" id="lsend" style="margin-top:16px">Szabadság rögzítése</button>`;
+  const mine = (ab.absences || []).filter((a) => a.type === 'szabadsag');
+  if (mine.length) {
+    h += `<div class="label">Szabadságaim</div>`;
+    const today = new Date().toISOString().slice(0, 10);
+    for (const a of mine) {
+      h += `<div class="card hist"><b>${hu(a.start_date)}${a.end_date !== a.start_date ? ' – ' + hu(a.end_date) : ''}</b>
+        <span class="muted">${a.no_replacement ? 'nem kell helyettes' : a.replacement ? 'helyettes: ' + esc(a.replacement) : 'helyettes: még nincs'}</span>
+        ${a.start_date > today ? `<div><button class="link" data-lx="${a.id}">Visszavonás</button></div>` : ''}</div>`;
+    }
+  }
+  $('app').innerHTML = h;
+}
+
+function renderSick() {
+  let h = `<p class="muted" style="margin-top:14px">Ha beteg vagy, itt jelezd, és mihamarabb szólj az orvosnak is. A táppénzes papírt később ide fotózd le.</p>`;
+  h += `<div class="label">Mióta vagy beteg?</div><input type="date" id="sfrom" value="${esc(sk.from)}">`;
+  h += `<div class="label">Várhatóan meddig?</div><input type="date" id="sto" value="${esc(sk.to)}">`;
+  h += `<div class="label">Megjegyzés (nem kötelező)</div><textarea id="snote">${esc(sk.note)}</textarea>`;
+  h += `<button class="send" id="ssend" style="margin-top:16px">Betegség jelzése</button>`;
+  const sick = (ab.absences || []).filter((a) => a.type === 'betegseg');
+  if (sick.length) {
+    h += `<div class="label">Betegségeim</div>`;
+    for (const a of sick) {
+      h += `<div class="card hist"><b>${hu(a.start_date)} – ${hu(a.end_date)}</b>
+        ${a.sick_note ? '<span class="ok">✓ Táppénzes papír feltöltve</span>'
+          : `<span class="err">Táppénzes papír még nincs</span><div><label class="send ghost" style="display:block;text-align:center;margin-top:8px;padding:12px">
+             📷 Papír lefotózása<input type="file" accept="image/*,application/pdf" data-snote="${a.id}" hidden></label></div>`}</div>`;
+    }
+  }
+  $('app').innerHTML = h;
+}
+
+function shrink(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onerror = () => reject(new Error('A fájl nem olvasható.'));
+    if (file.type === 'application/pdf') { r.onload = () => resolve({ mime: 'application/pdf', data: String(r.result).split(',')[1] }); return r.readAsDataURL(file); }
+    r.onload = () => { const img = new Image(); img.onload = () => {
+      const k = Math.min(1, 1800 / Math.max(img.width, img.height)); const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      resolve({ mime: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.82).split(',')[1] }); };
+      img.onerror = () => reject(new Error('Ezt a képet nem tudom megnyitni.')); img.src = r.result; };
+    r.readAsDataURL(file);
+  });
+}
+
+document.addEventListener('input', (e) => {
+  const t = e.target;
+  if (t.id === 'lfrom') { lv.from = t.value; if (!lv.to || lv.to < lv.from) lv.to = lv.from; renderLeave(); }
+  if (t.id === 'lto') { lv.to = t.value; renderLeave(); }
+  if (t.id === 'lnote') lv.note = t.value;
+  if (t.id === 'sfrom') sk.from = t.value;
+  if (t.id === 'sto') sk.to = t.value;
+  if (t.id === 'snote') sk.note = t.value;
+});
+document.addEventListener('change', async (e) => {
+  const t = e.target;
+  if (t.id === 'lrepl') lv.repl = t.value;
+  if (t.dataset && t.dataset.snote && t.files[0]) {
+    try {
+      const f = await shrink(t.files[0]);
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/onboarding`, { method: 'POST',
+        headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sick_note', order_token: token, absence_id: t.dataset.snote, ...f }) });
+      const j = await res.json().catch(() => null);
+      if (!res.ok) throw new Error((j && j.error) || 'Nem sikerült feltölteni');
+      alert('Köszönjük, a táppénzes papírt megkaptuk!');
+      ab = await rpc('absence_portal', { p_token: token }); renderSick();
+    } catch (err) { alert(err.message); }
+  }
+});
+document.addEventListener('click', async (e) => {
+  const t = e.target.closest('button'); if (!t || !ab) return;
+  try {
+    if (t.id === 'lsend') {
+      if (!lv.from || !lv.to) return alert('Add meg, mettől meddig leszel szabadságon.');
+      t.disabled = true;
+      await rpc('absence_submit', { p_token: token, p_type: 'szabadsag', p_from: lv.from, p_to: lv.to,
+        p_replacement: lv.repl && lv.repl !== 'none' ? lv.repl : null, p_no_replacement: lv.repl === 'none', p_note: lv.note });
+      lv.from = lv.to = lv.note = lv.repl = '';
+      ab = await rpc('absence_portal', { p_token: token });
+      alert('Rögzítettük a szabadságodat. Tamás vagy Laci értesítést kapott.');
+      renderLeave();
+    } else if (t.dataset.lx) {
+      if (!confirm('Visszavonod ezt a szabadságot?')) return;
+      await rpc('absence_cancel', { p_token: token, p_absence: t.dataset.lx });
+      ab = await rpc('absence_portal', { p_token: token }); renderLeave();
+    } else if (t.id === 'ssend') {
+      if (!sk.from) return alert('Add meg, mióta vagy beteg.');
+      t.disabled = true;
+      await rpc('absence_submit', { p_token: token, p_type: 'betegseg', p_from: sk.from, p_to: sk.to || sk.from, p_note: sk.note });
+      sk.to = sk.note = '';
+      ab = await rpc('absence_portal', { p_token: token });
+      alert('Jobbulást! Tamás vagy Laci értesítést kapott. Ha megvan a táppénzes papír, fotózd le itt.');
+      renderSick();
+    }
+  } catch (err) { alert(err.message); t.disabled = false; }
+});
 
 function chosen() { return data.products.filter((p) => (qty[p.id] || 0) > 0); }
 

@@ -81,7 +81,7 @@ async function load() {
   try {
     data = await rpc('order_portal', { p_token: token });
   } catch (e) { return fail(e.message); }
-  const first = (data.worker_name || '').trim().split(/\s+/).pop();
+  const first = (data.nickname || '').trim() || (data.worker_name || '').trim().split(/\s+/).pop();
   $('hello').textContent = `Szia${first ? ', ' + first : ''}!`;
   if (data.customers.length === 1) customer = data.customers[0].id;
   render();

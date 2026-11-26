@@ -108,7 +108,7 @@ async function load() {
   }
   f.full_name = portal.full_name || '';
   f.phone = portal.phone || '';
-  const first = f.full_name.trim().split(/\s+/).pop();
+  const first = (portal.nickname || '').trim() || f.full_name.trim().split(/\s+/).pop();
   $('hello').textContent = `Szia${first ? ', ' + first : ''}!`;
   render();
 }
